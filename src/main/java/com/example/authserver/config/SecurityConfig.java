@@ -1,27 +1,14 @@
 package com.example.authserver.config;
 
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.authority.AuthorityUtils;
@@ -49,6 +36,19 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import static org.springframework.security.config.Customizer.withDefaults;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -63,9 +63,10 @@ public class SecurityConfig {
                 .securityMatcher(authorizationServerConfigurer.getEndpointsMatcher())
                 .csrf(csrf -> csrf.ignoringRequestMatchers(
                         authorizationServerConfigurer.getEndpointsMatcher())) // disables CSRF for OAuth2 endpoints
+                .cors(withDefaults())
                 .with(authorizationServerConfigurer, (authorizationServer) ->
                         authorizationServer
-                                .oidc(Customizer.withDefaults())    // Enable OpenID Connect 1.0
+                                .oidc(withDefaults())    // Enable OpenID Connect 1.0
                 )
                 .authorizeHttpRequests((authorize) ->
                         authorize
@@ -90,7 +91,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 // Form login handles the redirect to the login page from the
                 // authorization server filter chain
-                .formLogin(Customizer.withDefaults());
+                .formLogin(withDefaults());
 
         return http.build();
     }
@@ -137,7 +138,7 @@ public class SecurityConfig {
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-                .redirectUri("https://oauth.pstmn.io/v1/callback")
+                .redirectUri("http://localhost:54321/swagger-ui/oauth2-redirect.html")
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.EMAIL)
                 .tokenSettings(TokenSettings.builder().accessTokenTimeToLive(Duration.ofMinutes(10))
@@ -147,11 +148,11 @@ public class SecurityConfig {
 
         RegisteredClient pkceClient = RegisteredClient.withId(UUID.randomUUID().toString())
                 .clientId("oidc-client-pkce")
-                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE) // public client, hence no secret required
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-                .redirectUri("https://oauth.pstmn.io/v1/callback")
+                .redirectUri("http://localhost:54321/swagger-ui/oauth2-redirect.html")
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.EMAIL)
                 .clientSettings(ClientSettings.builder().requireProofKey(true).build())
@@ -199,7 +200,7 @@ public class SecurityConfig {
     }
 
     /**
-     * By default roles come under scope[] in a access token, but if we want to customize it we can do it using below method
+     * By default, roles come under scope[] in an access token, but if we want to customize it we can do it using below method
      *
      * @return
      */
